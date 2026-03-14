@@ -20,7 +20,6 @@ meshes/ur10e/visual/wrist3.dae
 resource/robot_arm_teleop
 robot_arm_teleop/__init__.py
 robot_arm_teleop/kinematics_node.py
-robot_arm_teleop/manipulator_node.py
 robot_arm_teleop.egg-info/PKG-INFO
 robot_arm_teleop.egg-info/SOURCES.txt
 robot_arm_teleop.egg-info/dependency_links.txt
