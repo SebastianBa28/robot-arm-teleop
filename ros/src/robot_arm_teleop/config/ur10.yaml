@@ -1,0 +1,10 @@
+robot_name: "ur10"
+units: "meters/radians"
+dh_parameters:
+  # [theta_offset, d, a, alpha]
+  joint_1: [0.0, 0.1273, 0.0, 1.570796]   # alpha = pi/2
+  joint_2: [0.0, 0.0, -0.612, 0.0]
+  joint_3: [0.0, 0.0, -0.5723, 0.0]
+  joint_4: [0.0, 0.1639, 0.0, 1.570796]   # alpha = pi/2
+  joint_5: [0.0, 0.1157, 0.0, -1.570796]  # alpha = -pi/2
+  joint_6: [0.0, 0.0922, 0.0, 0.0]
