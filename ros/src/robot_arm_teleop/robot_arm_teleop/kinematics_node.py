@@ -111,6 +111,7 @@ class KinematicsNode(Node):
         
         # Integration
         self.q += q_dot * self.dt
+        # self.q = np.zeros(6)
         
         # Publish
         msg = JointState()
@@ -119,6 +120,8 @@ class KinematicsNode(Node):
         msg.position = self.q.tolist()
         msg.velocity = q_dot.tolist()
         self.joint_pub.publish(msg)
+
+        self.get_logger().info(f"q: {self.q}")
 
 def main(args=None):
     rclpy.init(args=args)

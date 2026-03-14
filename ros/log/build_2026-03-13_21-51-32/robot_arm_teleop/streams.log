@@ -1,0 +1,52 @@
+[1.301s] Invoking command in '/home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/build --no-deps symlink_data
+[1.786s] running develop
+[2.110s] running egg_info
+[2.110s] creating robot_arm_teleop.egg-info
+[2.143s] writing robot_arm_teleop.egg-info/PKG-INFO
+[2.143s] writing dependency_links to robot_arm_teleop.egg-info/dependency_links.txt
+[2.144s] writing entry points to robot_arm_teleop.egg-info/entry_points.txt
+[2.144s] writing requirements to robot_arm_teleop.egg-info/requires.txt
+[2.144s] writing top-level names to robot_arm_teleop.egg-info/top_level.txt
+[2.144s] writing manifest file 'robot_arm_teleop.egg-info/SOURCES.txt'
+[2.210s] reading manifest file 'robot_arm_teleop.egg-info/SOURCES.txt'
+[2.211s] writing manifest file 'robot_arm_teleop.egg-info/SOURCES.txt'
+[2.299s] running build_ext
+[2.299s] Creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/lib/python3.12/site-packages/robot-arm-teleop.egg-link (link to .)
+[2.300s] Installing kinematics_node script to /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/lib/robot_arm_teleop
+[2.300s] Installing manipulator_node script to /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/lib/robot_arm_teleop
+[2.301s] 
+[2.301s] Installed /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop
+[2.301s] running symlink_data
+[2.301s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/ament_index
+[2.301s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/ament_index/resource_index
+[2.302s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/ament_index/resource_index/packages
+[2.302s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/resource/robot_arm_teleop -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/ament_index/resource_index/packages
+[2.302s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/package.xml -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop
+[2.302s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/launch
+[2.302s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/launch/visual.launch.py -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/launch
+[2.302s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/rviz
+[2.302s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/rviz/viewurdf.rviz -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/rviz
+[2.303s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/rviz/ur10.rviz -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/rviz
+[2.303s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/urdf
+[2.303s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/urdf/ur10e.urdf -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/urdf
+[2.303s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes
+[2.303s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e
+[2.303s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.303s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/wrist3.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/base.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/upperarm.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/forearm.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/wrist2.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/shoulder.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/visual/wrist1.dae -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/visual
+[2.304s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.304s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/forearm.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/upperarm.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/base.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/wrist1.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/shoulder.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/wrist3.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/meshes/ur10e/collision/wrist2.stl -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/meshes/ur10e/collision
+[2.305s] creating /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/config
+[2.305s] symbolically linking /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/config/ur10.yaml -> /home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/share/robot_arm_teleop/config
+[2.344s] Invoked command in '/home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop' returned '0': DEBUGINFOD_URLS=https://debuginfod.ubuntu.com PYTHONPATH=/home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/prefix_override:/usr/lib/python3/dist-packages/colcon_core/task/python/colcon_distutils_commands:/home/sebas/robot-arm-teleop/ros/install/robot_arm_teleop/lib/python3.12/site-packages:${PYTHONPATH} /usr/bin/python3 -W ignore:setup.py install is deprecated -W ignore:easy_install command is deprecated setup.py develop --editable --build-directory /home/sebas/robot-arm-teleop/ros/build/robot_arm_teleop/build --no-deps symlink_data

@@ -50,10 +50,10 @@ def generate_launch_description():
         ),
         
         # Manipulator Node (Mock)
-        # Node(
-        #     package=package_name,
-        #     executable='manipulator_node',
-        #     name='manipulator_node',
-        #     output='screen'
-        # )
+        Node(
+            package=package_name,
+            executable='manipulator_node',
+            name='manipulator_node',
+            output='screen'
+        )
     ])
