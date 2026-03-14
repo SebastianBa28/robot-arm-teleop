@@ -15,6 +15,7 @@ class TeleopManager: ObservableObject {
 
     // Pass-through properties
     var isConnected: Bool { webSocketManager.isConnected }
+    var isConnecting: Bool { webSocketManager.isConnecting }
     var currentPose: simd_float4x4 { arSessionManager.currentPose }
     var isTracking: Bool { arSessionManager.isTracking }
     var trackingError: String? { arSessionManager.trackingError }

@@ -116,9 +116,8 @@ class KinematicsNode(Node):
         msg = JointState()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.name = self.joint_names
-        # msg.position = self.q.tolist()
-        msg.position = np.zeros(6)
-        msg.velocity = np.zeros(6)
+        msg.position = self.q.tolist()
+        msg.velocity = q_dot.tolist()
         self.joint_pub.publish(msg)
 
 def main(args=None):

@@ -13,7 +13,11 @@ struct SettingsView: View {
     var connectAction: () -> Void
     var disconnectAction: () -> Void
     var isConnected: Bool
-    
+    var isConnecting: Bool
+    var connectionError: String?
+
+    @State private var showConnectedMessage = false
+
     var body: some View {
         NavigationView {
             Form {
@@ -22,8 +26,9 @@ struct SettingsView: View {
                         .autocapitalization(.none)
                         .disableAutocorrection(true)
                         .keyboardType(.URL)
+                        .disabled(isConnecting)
                 }
-                
+
                 Section {
                     if isConnected {
                         Button(action: {
@@ -36,10 +41,39 @@ struct SettingsView: View {
                     } else {
                         Button(action: {
                             connectAction()
-                            isPresented = false
                         }) {
-                            Text("Connect")
-                                .foregroundColor(.blue)
+                            HStack {
+                                Text("Connect")
+                                if isConnecting {
+                                    Spacer()
+                                    ProgressView()
+                                }
+                            }
+                        }
+                        .disabled(isConnecting)
+                    }
+                }
+
+                // Connection status feedback
+                if showConnectedMessage {
+                    Section {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Connected successfully")
+                                .foregroundColor(.green)
+                        }
+                    }
+                }
+
+                if let error = connectionError, !isConnecting {
+                    Section {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                            Text(error)
+                                .foregroundColor(.red)
+                                .font(.subheadline)
                         }
                     }
                 }
@@ -48,6 +82,15 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
+                        isPresented = false
+                    }
+                }
+            }
+            .onChange(of: isConnected) { connected in
+                if connected {
+                    showConnectedMessage = true
+                    // Auto-dismiss after showing success
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         isPresented = false
                     }
                 }

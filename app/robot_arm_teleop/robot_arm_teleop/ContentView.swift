@@ -37,7 +37,14 @@ struct ContentView: View {
                             .foregroundColor(.orange)
                     }
 
-                    // Connection dot
+                    // Connection status
+                    if let error = teleop.connectionError {
+                        Text(error)
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                            .lineLimit(1)
+                    }
+
                     Circle()
                         .fill(teleop.isConnected ? Color.green : Color.red)
                         .frame(width: 10, height: 10)
@@ -93,7 +100,9 @@ struct ContentView: View {
                 isPresented: $showSettings,
                 connectAction: { teleop.connect(url: serverURL) },
                 disconnectAction: { teleop.disconnect() },
-                isConnected: teleop.isConnected
+                isConnected: teleop.isConnected,
+                isConnecting: teleop.isConnecting,
+                connectionError: teleop.connectionError
             )
         }
     }

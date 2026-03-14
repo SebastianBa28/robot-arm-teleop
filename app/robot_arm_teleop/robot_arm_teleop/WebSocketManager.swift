@@ -8,6 +8,7 @@ import Combine
 
 class WebSocketManager: ObservableObject {
     @Published var isConnected: Bool = false
+    @Published var isConnecting: Bool = false
     @Published var lastFeedback: FeedbackData?
     @Published var connectionError: String?
 
@@ -32,11 +33,30 @@ class WebSocketManager: ObservableObject {
         retryCount = 0
         connectionError = nil
 
+        DispatchQueue.main.async {
+            self.isConnecting = true
+        }
+
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = session.webSocketTask(with: url)
         webSocketTask?.resume()
 
         receiveMessage()
+
+        // Verify the connection with a ping
+        webSocketTask?.sendPing { [weak self] error in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                self.isConnecting = false
+                if let error = error {
+                    self.isConnected = false
+                    self.connectionError = "Connection failed: \(error.localizedDescription)"
+                } else {
+                    self.isConnected = true
+                    self.connectionError = nil
+                }
+            }
+        }
     }
 
     func disconnect() {
@@ -47,6 +67,7 @@ class WebSocketManager: ObservableObject {
         webSocketTask = nil
         DispatchQueue.main.async {
             self.isConnected = false
+            self.isConnecting = false
             self.lastFeedback = nil
         }
     }

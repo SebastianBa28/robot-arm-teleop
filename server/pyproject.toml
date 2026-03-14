@@ -1,0 +1,12 @@
+[project]
+name = "robot-arm-teleop-server"
+version = "0.1.0"
+description = "FastAPI WebSocket bridge for UR10e teleoperation"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "numpy>=2.0.0",
+    "httpx>=0.28.1",
+    "websocket>=0.2.1",
+]
