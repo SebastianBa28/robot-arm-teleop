@@ -12,6 +12,8 @@ register_dashboard_routes(app)
 
 # Shared state for relay
 latest_twist = {"vx": 0.0, "vy": 0.0, "vz": 0.0, "wx": 0.0, "wy": 0.0, "wz": 0.0}
+latest_transform = None
+latest_mode = "velocity"
 latest_feedback = {}
 
 # Connected clients
@@ -47,8 +49,8 @@ async def ios_endpoint(websocket: WebSocket):
             except (json.JSONDecodeError, TypeError):
                 continue
 
-            # Store latest twist
-            global latest_twist
+            # Store latest twist, transform, and mode
+            global latest_twist, latest_transform, latest_mode
             latest_twist = {
                 "vx": data.get("vx", 0.0),
                 "vy": data.get("vy", 0.0),
@@ -57,6 +59,10 @@ async def ios_endpoint(websocket: WebSocket):
                 "wy": data.get("wy", 0.0),
                 "wz": data.get("wz", 0.0),
             }
+            if "transform" in data:
+                latest_transform = data["transform"]
+            if "mode" in data:
+                latest_mode = data["mode"]
 
             # Update dashboard twist
             dashboard_state.twist = [
@@ -65,11 +71,14 @@ async def ios_endpoint(websocket: WebSocket):
             ]
             dashboard_state.update_msg_rate()
 
-            # Forward twist to all ROS clients
+            # Forward full message to all ROS clients
+            relay_msg = {**latest_twist, "mode": latest_mode}
+            if latest_transform is not None:
+                relay_msg["transform"] = latest_transform
             dead = set()
             for ros_ws in ros_clients:
                 try:
-                    await ros_ws.send_text(json.dumps(latest_twist))
+                    await ros_ws.send_text(json.dumps(relay_msg))
                 except Exception:
                     dead.add(ros_ws)
             ros_clients.difference_update(dead)

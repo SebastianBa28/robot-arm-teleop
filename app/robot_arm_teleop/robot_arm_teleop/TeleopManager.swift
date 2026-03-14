@@ -13,6 +13,13 @@ class TeleopManager: ObservableObject {
 
     @Published var isARActive: Bool = false
 
+    // Configuration (set from ContentView @AppStorage bindings)
+    var controlMode: String = "velocity"
+    var axisMapping: AxisMapping = .default
+
+    // Reference pose for position mode (captured when AR starts)
+    private var referencePose: simd_float4x4?
+
     // Pass-through properties
     var isConnected: Bool { webSocketManager.isConnected }
     var isConnecting: Bool { webSocketManager.isConnecting }
@@ -28,12 +35,36 @@ class TeleopManager: ObservableObject {
     init() {
         self.hapticsController = HapticsController(webSocketManager: webSocketManager)
 
-        // Forward twist data to WebSocket when streaming
+        // Forward teleop data to WebSocket when streaming
         arSessionManager.$latestTwist
             .compactMap { $0 }
             .sink { [weak self] twist in
                 guard let self = self, self.isARActive, self.webSocketManager.isConnected else { return }
-                self.webSocketManager.send(twist: twist)
+
+                let mapping = self.axisMapping
+                let mode = self.controlMode
+
+                // Remap twist
+                let (rvx, rvy, rvz) = mapping.remap(twist.vx, twist.vy, twist.vz)
+                let (rwx, rwy, rwz) = mapping.remap(twist.wx, twist.wy, twist.wz)
+
+                // Get current pose and compute relative transform
+                let currentPose = self.arSessionManager.currentPose
+                if self.referencePose == nil {
+                    self.referencePose = currentPose
+                }
+                let relativePose = simd_mul(simd_inverse(self.referencePose!), currentPose)
+
+                // Remap the relative transform
+                let remappedTransform = mapping.remapTransform(relativePose)
+
+                let message = TeleopMessage(
+                    vx: rvx, vy: rvy, vz: rvz,
+                    wx: rwx, wy: rwy, wz: rwz,
+                    transform: remappedTransform,
+                    mode: mode
+                )
+                self.webSocketManager.send(message: message)
             }
             .store(in: &cancellables)
 
@@ -49,8 +80,10 @@ class TeleopManager: ObservableObject {
     func toggleAR() {
         if isARActive {
             arSessionManager.stop()
+            referencePose = nil
         } else {
             arSessionManager.start()
+            referencePose = nil  // will be captured on first frame
         }
         isARActive.toggle()
     }

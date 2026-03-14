@@ -118,6 +118,9 @@ class KinematicsNode(Node):
             'wrist_1_joint', 'wrist_2_joint', 'wrist_3_joint'
         ]
         self.current_twist = np.zeros(6)
+        self.current_transform = None  # 4x4 relative transform from iOS
+        self.current_mode = "velocity"
+        self.reference_ee_pose = None  # captured on first position-mode message
         self._twist_lock = threading.Lock()
         self._feedback_to_send = None
         self._feedback_lock = threading.Lock()
@@ -165,6 +168,10 @@ class KinematicsNode(Node):
                                     ])
                                     with self._twist_lock:
                                         self.current_twist = twist
+                                        if "mode" in data:
+                                            self.current_mode = data["mode"]
+                                        if "transform" in data:
+                                            self.current_transform = np.array(data["transform"])
                                 except (json.JSONDecodeError, TypeError):
                                     continue
 
@@ -193,10 +200,35 @@ class KinematicsNode(Node):
         with self._twist_lock:
             self.current_twist = twist
 
+    def _pose_error_twist(self, target_pose, gain=2.0):
+        """Compute a 6D twist from pose error between current EE and target pose."""
+        frames = forward_kinematics(self.q)
+        current_pose = frames[-1]
+
+        # Position error
+        pos_error = target_pose[:3, 3] - current_pose[:3, 3]
+
+        # Orientation error via rotation matrix: R_err = R_target @ R_current^T
+        R_err = target_pose[:3, :3] @ current_pose[:3, :3].T
+        # Extract axis-angle from R_err using Rodrigues
+        angle = np.arccos(np.clip((np.trace(R_err) - 1.0) / 2.0, -1.0, 1.0))
+        if abs(angle) < 1e-6:
+            rot_error = np.zeros(3)
+        else:
+            rot_error = angle / (2.0 * np.sin(angle)) * np.array([
+                R_err[2, 1] - R_err[1, 2],
+                R_err[0, 2] - R_err[2, 0],
+                R_err[1, 0] - R_err[0, 1],
+            ])
+
+        return gain * np.concatenate([pos_error, rot_error])
+
     def timer_callback(self):
-        # Read twist (thread-safe)
+        # Read state (thread-safe)
         with self._twist_lock:
             twist = self.current_twist.copy()
+            mode = self.current_mode
+            transform = self.current_transform.copy() if self.current_transform is not None else None
 
         # Compute dt
         now = time.time()
@@ -207,6 +239,20 @@ class KinematicsNode(Node):
         J = geometric_jacobian(self.q)
         mu = compute_manipulability(J)
         lam = adaptive_damping(mu)
+
+        if mode == "position" and transform is not None:
+            # Capture reference EE pose on first position-mode frame
+            if self.reference_ee_pose is None:
+                self.reference_ee_pose = forward_kinematics(self.q)[-1].copy()
+
+            # Target pose = reference_ee_pose * relative_transform
+            target_pose = self.reference_ee_pose @ transform
+            twist = self._pose_error_twist(target_pose)
+        else:
+            # Reset reference when switching back to velocity mode
+            if mode == "velocity":
+                self.reference_ee_pose = None
+
         q_dot = resolved_rate(J, twist, lam)
 
         # Clamp per-joint velocities

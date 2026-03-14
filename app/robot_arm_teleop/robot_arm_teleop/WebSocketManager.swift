@@ -72,11 +72,11 @@ class WebSocketManager: ObservableObject {
         }
     }
 
-    func send(twist: TwistData) {
+    func send(message: TeleopMessage) {
         guard isConnected, let task = webSocketTask else { return }
 
         do {
-            let data = try encoder.encode(twist)
+            let data = try encoder.encode(message)
             task.send(.data(data)) { error in
                 if let error = error {
                     print("Send error: \(error)")

@@ -11,7 +11,11 @@ import simd
 struct ContentView: View {
     @EnvironmentObject var teleop: TeleopManager
 
-    @State private var serverURL: String = "ws://192.168.1.100:8000/ws"
+    @AppStorage("serverURL") private var serverURL: String = "ws://192.168.1.100:8000/ws"
+    @AppStorage("controlMode") private var controlMode: String = "velocity"
+    @AppStorage("axisMapX") private var axisMapX: String = "-Z"
+    @AppStorage("axisMapY") private var axisMapY: String = "-X"
+    @AppStorage("axisMapZ") private var axisMapZ: String = "+Y"
     @State private var showSettings = false
 
     var body: some View {
@@ -97,6 +101,10 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView(
                 serverURL: $serverURL,
+                controlMode: $controlMode,
+                axisMapX: $axisMapX,
+                axisMapY: $axisMapY,
+                axisMapZ: $axisMapZ,
                 isPresented: $showSettings,
                 connectAction: { teleop.connect(url: serverURL) },
                 disconnectAction: { teleop.disconnect() },
@@ -105,6 +113,21 @@ struct ContentView: View {
                 connectionError: teleop.connectionError
             )
         }
+        .onChange(of: controlMode) { newValue in
+            teleop.controlMode = newValue
+        }
+        .onChange(of: axisMapX) { _ in syncAxisMapping() }
+        .onChange(of: axisMapY) { _ in syncAxisMapping() }
+        .onChange(of: axisMapZ) { _ in syncAxisMapping() }
+        .onAppear { syncAxisMapping(); teleop.controlMode = controlMode }
+    }
+
+    private func syncAxisMapping() {
+        teleop.axisMapping = AxisMapping(
+            robotX: AxisSource(rawValue: axisMapX) ?? .negZ,
+            robotY: AxisSource(rawValue: axisMapY) ?? .negX,
+            robotZ: AxisSource(rawValue: axisMapZ) ?? .posY
+        )
     }
 
     private func toggleAR() {

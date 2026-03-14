@@ -2,13 +2,15 @@
 //  SettingsView.swift
 //  robot_arm_teleop
 //
-//  Created by Gemini on 3/13/26.
-//
 
 import SwiftUI
 
 struct SettingsView: View {
     @Binding var serverURL: String
+    @Binding var controlMode: String
+    @Binding var axisMapX: String
+    @Binding var axisMapY: String
+    @Binding var axisMapZ: String
     @Binding var isPresented: Bool
     var connectAction: () -> Void
     var disconnectAction: () -> Void
@@ -27,6 +29,20 @@ struct SettingsView: View {
                         .disableAutocorrection(true)
                         .keyboardType(.URL)
                         .disabled(isConnecting)
+                }
+
+                Section(header: Text("Control Mode")) {
+                    Picker("Mode", selection: $controlMode) {
+                        Text("Velocity").tag("velocity")
+                        Text("Position").tag("position")
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                Section(header: Text("Axis Mapping (Phone → Robot)")) {
+                    axisPicker(label: "Robot X ←", selection: $axisMapX)
+                    axisPicker(label: "Robot Y ←", selection: $axisMapY)
+                    axisPicker(label: "Robot Z ←", selection: $axisMapZ)
                 }
 
                 Section {
@@ -54,7 +70,6 @@ struct SettingsView: View {
                     }
                 }
 
-                // Connection status feedback
                 if showConnectedMessage {
                     Section {
                         HStack {
@@ -89,11 +104,18 @@ struct SettingsView: View {
             .onChange(of: isConnected) { connected in
                 if connected {
                     showConnectedMessage = true
-                    // Auto-dismiss after showing success
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                         isPresented = false
                     }
                 }
+            }
+        }
+    }
+
+    private func axisPicker(label: String, selection: Binding<String>) -> some View {
+        Picker(label, selection: selection) {
+            ForEach(AxisSource.allCases) { source in
+                Text(source.rawValue).tag(source.rawValue)
             }
         }
     }
