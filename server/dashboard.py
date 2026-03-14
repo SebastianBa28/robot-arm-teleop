@@ -13,10 +13,8 @@ class DashboardState:
     """Singleton holding the latest telemetry snapshot for dashboard clients."""
 
     def __init__(self):
-        from kinematics import Q_HOME
-
         self.twist = [0.0] * 6
-        self.q = Q_HOME.tolist()
+        self.q = [0.0, -1.5707963, 1.5707963, -1.5707963, -1.5707963, 0.0]  # Q_HOME
         self.qdot = [0.0] * 6
         self.ee_pos = [0.0, 0.0, 0.0]
         self.ee_dist = 0.0
@@ -67,26 +65,22 @@ dashboard_clients: set[WebSocket] = set()
 
 
 def get_static_config() -> dict:
-    """Collect all constants for the config panel."""
-    from kinematics import (
-        DH_A, DH_D, DH_ALPHA, Q_MIN, Q_MAX, QDOT_MAX, Q_HOME,
-    )
-    from feedback import MAX_REACH, MU_THRESHOLD
-    from main import TWIST_SCALE, MAX_DT, MIN_DT
-
+    """UR10e constants for the config panel (previously from kinematics.py)."""
+    import math
+    pi = math.pi
     return {
-        "dh_a": DH_A.tolist(),
-        "dh_d": DH_D.tolist(),
-        "dh_alpha": DH_ALPHA.tolist(),
-        "q_min": Q_MIN.tolist(),
-        "q_max": Q_MAX.tolist(),
-        "qdot_max": QDOT_MAX.tolist(),
-        "q_home": Q_HOME.tolist(),
-        "max_reach": MAX_REACH,
-        "mu_threshold": MU_THRESHOLD,
-        "twist_scale": TWIST_SCALE,
-        "max_dt": MAX_DT,
-        "min_dt": MIN_DT,
+        "dh_a": [0.0, -0.6127, -0.57155, 0.0, 0.0, 0.0],
+        "dh_d": [0.1807, 0.0, 0.0, 0.17415, 0.11985, 0.11655],
+        "dh_alpha": [pi / 2, 0.0, 0.0, pi / 2, -pi / 2, 0.0],
+        "q_min": [-2 * pi] * 6,
+        "q_max": [2 * pi] * 6,
+        "qdot_max": [pi, pi, pi, 2 * pi, 2 * pi, 2 * pi],
+        "q_home": [0.0, -pi / 2, pi / 2, -pi / 2, -pi / 2, 0.0],
+        "max_reach": 1.1843,
+        "mu_threshold": 0.005,
+        "twist_scale": 1.0,
+        "max_dt": 0.1,
+        "min_dt": 0.001,
         "damping_mu_threshold": 0.01,
         "damping_lambda_min": 0.001,
         "damping_lambda_max": 0.1,

@@ -2,24 +2,21 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, Command
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
     package_name = 'robot_arm_teleop'
-    
+
     urdf_file = os.path.join(get_package_share_directory(package_name), 'urdf', 'ur10e.urdf')
-    
-    # RViz config file
     rviz_config = os.path.join(get_package_share_directory(package_name), 'rviz', 'viewurdf.rviz')
-    
-    # UR10 config for kinematics node
-    ur10_config = os.path.join(get_package_share_directory(package_name), 'config', 'ur10.yaml')
 
     with open(urdf_file, 'r') as f:
         robot_description = f.read()
 
     return LaunchDescription([
+        DeclareLaunchArgument('server_url', default_value='ws://localhost:8000/ws/ros'),
+
         # Robot State Publisher
         Node(
             package='robot_state_publisher',
@@ -30,7 +27,7 @@ def generate_launch_description():
                 'robot_description': robot_description
             }]
         ),
-        
+
         # RViz
         Node(
             package='rviz2',
@@ -39,21 +36,15 @@ def generate_launch_description():
             output='screen',
             arguments=['-d', rviz_config]
         ),
-        
+
         # Kinematics Node
         Node(
             package=package_name,
             executable='kinematics_node',
             name='kinematics_node',
             output='screen',
-            parameters=[{'config_path': ur10_config}]
+            parameters=[{
+                'server_url': LaunchConfiguration('server_url'),
+            }]
         ),
-        
-        # Manipulator Node (Mock)
-        Node(
-            package=package_name,
-            executable='manipulator_node',
-            name='manipulator_node',
-            output='screen'
-        )
     ])

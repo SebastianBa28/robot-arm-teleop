@@ -1,44 +1,22 @@
-"""FastAPI WebSocket server for UR10e teleoperation bridge."""
+"""FastAPI WebSocket server: relay between iOS app and ROS KinematicsNode."""
 
+import asyncio
 import json
-import time
 
-import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from kinematics import (
-    Q_HOME,
-    Q_MAX,
-    Q_MIN,
-    QDOT_MAX,
-    adaptive_damping,
-    compute_manipulability,
-    forward_kinematics,
-    geometric_jacobian,
-    resolved_rate,
-)
-from feedback import compute_feedback
 from dashboard import dashboard_state, register_dashboard_routes
 
 app = FastAPI(title="UR10e Teleop Bridge")
 register_dashboard_routes(app)
 
-# Twist scaling factor (tune during testing)
-TWIST_SCALE = 1.0
+# Shared state for relay
+latest_twist = {"vx": 0.0, "vy": 0.0, "vz": 0.0, "wx": 0.0, "wy": 0.0, "wz": 0.0}
+latest_feedback = {}
 
-# Max dt to prevent state jumps [s]
-MAX_DT = 0.1
-
-# Min dt to skip integration [s]
-MIN_DT = 0.001
-
-
-class RobotState:
-    """Per-connection robot joint state."""
-
-    def __init__(self):
-        self.q = Q_HOME.copy()
-        self.last_time = time.time()
+# Connected clients
+ros_clients: set[WebSocket] = set()
+ios_clients: set[WebSocket] = set()
 
 
 @app.get("/health")
@@ -47,16 +25,16 @@ async def health():
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def ios_endpoint(websocket: WebSocket):
+    """iOS app connects here: sends twist, receives feedback."""
     await websocket.accept()
-    state = RobotState()
+    ios_clients.add(websocket)
     dashboard_state.n_connections += 1
 
     try:
         while True:
             message = await websocket.receive()
 
-            # Handle both text and binary messages from iOS
             if "text" in message:
                 raw = message["text"]
             elif "bytes" in message:
@@ -69,58 +47,89 @@ async def websocket_endpoint(websocket: WebSocket):
             except (json.JSONDecodeError, TypeError):
                 continue
 
-            twist = np.array([
-                data.get("vx", 0.0),
-                data.get("vy", 0.0),
-                data.get("vz", 0.0),
-                data.get("wx", 0.0),
-                data.get("wy", 0.0),
-                data.get("wz", 0.0),
-            ]) * TWIST_SCALE
+            # Store latest twist
+            global latest_twist
+            latest_twist = {
+                "vx": data.get("vx", 0.0),
+                "vy": data.get("vy", 0.0),
+                "vz": data.get("vz", 0.0),
+                "wx": data.get("wx", 0.0),
+                "wy": data.get("wy", 0.0),
+                "wz": data.get("wz", 0.0),
+            }
 
-            # Compute dt
-            now = time.time()
-            dt = min(now - state.last_time, MAX_DT)
-            state.last_time = now
-
-            # Kinematics pipeline
-            frames = forward_kinematics(state.q)
-            J = geometric_jacobian(state.q)
-            mu = compute_manipulability(J)
-            lam = adaptive_damping(mu)
-            qdot = resolved_rate(J, twist, lam)
-
-            # Clamp joint velocities
-            qdot = np.clip(qdot, -QDOT_MAX, QDOT_MAX)
-
-            # Integrate joint state
-            if dt > MIN_DT:
-                state.q = state.q + qdot * dt
-                state.q = np.clip(state.q, Q_MIN, Q_MAX)
-
-            # Recompute frames at new q for accurate feedback
-            frames = forward_kinematics(state.q)
-            J = geometric_jacobian(state.q)
-
-            # Send feedback
-            feedback = compute_feedback(state.q, J, frames)
-            await websocket.send_text(json.dumps(feedback))
-
-            # Update dashboard state
-            dashboard_state.twist = (twist / TWIST_SCALE).tolist()
-            dashboard_state.q = state.q.tolist()
-            dashboard_state.qdot = qdot.tolist()
-            dashboard_state.ee_pos = frames[-1][:3, 3].tolist()
-            dashboard_state.ee_dist = float(np.linalg.norm(frames[-1][:3, 3]))
-            dashboard_state.mu = float(mu)
-            dashboard_state.lam = float(lam)
-            dashboard_state.feedback = feedback
-            dashboard_state.dt = dt
+            # Update dashboard twist
+            dashboard_state.twist = [
+                latest_twist["vx"], latest_twist["vy"], latest_twist["vz"],
+                latest_twist["wx"], latest_twist["wy"], latest_twist["wz"],
+            ]
             dashboard_state.update_msg_rate()
+
+            # Forward twist to all ROS clients
+            dead = set()
+            for ros_ws in ros_clients:
+                try:
+                    await ros_ws.send_text(json.dumps(latest_twist))
+                except Exception:
+                    dead.add(ros_ws)
+            ros_clients.difference_update(dead)
+
+            # Send latest feedback to iOS (if available)
+            if latest_feedback:
+                await websocket.send_text(json.dumps(latest_feedback))
 
     except WebSocketDisconnect:
         pass
     except Exception as e:
-        print(f"WebSocket error: {e}")
+        print(f"iOS WebSocket error: {e}")
     finally:
+        ios_clients.discard(websocket)
         dashboard_state.n_connections = max(0, dashboard_state.n_connections - 1)
+
+
+@app.websocket("/ws/ros")
+async def ros_endpoint(websocket: WebSocket):
+    """ROS KinematicsNode connects here: receives twist, sends feedback+state."""
+    await websocket.accept()
+    ros_clients.add(websocket)
+    print("ROS client connected")
+
+    try:
+        while True:
+            raw = await websocket.receive_text()
+
+            try:
+                data = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            # Update feedback for iOS
+            global latest_feedback
+            if "feedback" in data:
+                latest_feedback = data["feedback"]
+
+            # Update dashboard state from ROS data
+            if "q" in data:
+                dashboard_state.q = data["q"]
+            if "qdot" in data:
+                dashboard_state.qdot = data["qdot"]
+            if "ee_pos" in data:
+                dashboard_state.ee_pos = data["ee_pos"]
+            if "ee_dist" in data:
+                dashboard_state.ee_dist = data["ee_dist"]
+            if "mu" in data:
+                dashboard_state.mu = data["mu"]
+            if "lam" in data:
+                dashboard_state.lam = data["lam"]
+            if "feedback" in data:
+                dashboard_state.feedback = data["feedback"]
+            if "dt" in data:
+                dashboard_state.dt = data["dt"]
+
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        print(f"ROS WebSocket error: {e}")
+    finally:
+        ros_clients.discard(websocket)
+        print("ROS client disconnected")

@@ -39,7 +39,6 @@ setup(
     entry_points={
         'console_scripts': [
             'kinematics_node     = robot_arm_teleop.kinematics_node:main',
-            'manipulator_node     = robot_arm_teleop.manipulator_node:main',
         ],
     },
 )
