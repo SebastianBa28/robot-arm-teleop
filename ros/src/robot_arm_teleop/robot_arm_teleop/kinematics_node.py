@@ -25,6 +25,16 @@ Q_HOME = np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 MAX_REACH = 1.1843  # UR10e approximate max reach [m]
 MU_THRESHOLD = 0.005
 
+# DH parameters as (a, d, alpha) tuples for analytical IK (from lab2)
+IK_PARAMS = [
+    (0.0,      0.1807,  np.pi / 2),
+    (-0.6127,  0.0,     0.0),
+    (-0.57155, 0.0,     0.0),
+    (0.0,      0.17415, np.pi / 2),
+    (0.0,      0.11985, -np.pi / 2),
+    (0.0,      0.11655, 0.0),
+]
+
 
 def dh_transform(theta, d, a, alpha):
     """4x4 homogeneous transform from standard DH parameters."""
@@ -102,6 +112,173 @@ def compute_feedback(q, J, frames):
         "workspace_proximity": float(ws_prox),
         "is_feasible": bool(is_feasible),
     }
+
+
+# ---------------------------------------------------------------------------
+# Analytical IK (ported from lab2/lab2.py)
+# ---------------------------------------------------------------------------
+
+def _getX(alpha, a):
+    return np.array([[1, 0, 0, a],
+                     [0, np.cos(alpha), -np.sin(alpha), 0],
+                     [0, np.sin(alpha),  np.cos(alpha), 0],
+                     [0, 0, 0, 1]])
+
+
+def _getZ(theta, d):
+    return np.array([[np.cos(theta), -np.sin(theta), 0, 0],
+                     [np.sin(theta),  np.cos(theta), 0, 0],
+                     [0, 0, 1, d],
+                     [0, 0, 0, 1]])
+
+
+def fk_classical(q, T_6t=None):
+    """Forward kinematics using classical DH (lab2 convention)."""
+    if T_6t is None:
+        T_6t = np.eye(4)
+    T = np.eye(4)
+    for i, (a, d, alpha) in enumerate(IK_PARAMS):
+        T = T @ _getZ(q[i], d) @ _getX(alpha, a)
+    return T @ T_6t
+
+
+def safety_check(q):
+    """Check that all joint frames stay above ground (z > 0)."""
+    T = np.eye(4)
+    for i, (a, d, alpha) in enumerate(IK_PARAMS):
+        T = T @ _getZ(q[i], d) @ _getX(alpha, a)
+        if T[2, 3] < 0:
+            return False
+    return True
+
+
+def dh_modified_to_classical(q):
+    """Convert modified DH solution to classical DH convention."""
+    q_c = q.copy()
+    q_c[1] = q[1] - np.pi / 2
+    q_c[3] = q[3] - np.pi / 2
+    q_c[5] = q[5] + np.pi
+    return q_c
+
+
+def ik(T_bt, T_6t=None):
+    """Analytical closed-form IK for UR10e. Returns list of solutions in modified DH."""
+    if T_6t is None:
+        T_6t = np.eye(4)
+
+    d1 = IK_PARAMS[0][1]   # 0.1807
+    a2 = -IK_PARAMS[1][0]  # 0.6127
+    a3 = -IK_PARAMS[2][0]  # 0.57155
+    d4 = IK_PARAMS[3][1]   # 0.17415
+    d5 = IK_PARAMS[4][1]   # 0.11985
+    L_B = d1
+
+    T_B0 = np.eye(4)
+    T_B0[2, 3] = L_B
+
+    T_06 = np.linalg.inv(T_B0) @ T_bt @ np.linalg.inv(T_6t)
+
+    R = T_06[:3, :3]
+    x6, y6, z6 = T_06[0, 3], T_06[1, 3], T_06[2, 3]
+    r11, r12, r13 = R[0, 0], R[0, 1], R[0, 2]
+    r21, r22, r23 = R[1, 0], R[1, 1], R[1, 2]
+    r31, r32, r33 = R[2, 0], R[2, 1], R[2, 2]
+
+    solutions = []
+
+    # Step 1: Solve theta1
+    E1, F1, G1 = y6, -x6, d4
+    disc1 = E1**2 + F1**2 - G1**2
+    if disc1 < -1e-8:
+        return solutions
+    disc1 = max(disc1, 0.0)
+
+    theta1_solutions = []
+    denom1 = G1 - E1
+    if abs(denom1) < 1e-12:
+        if abs(F1) > 1e-12:
+            t_half = -(G1 + E1) / (2 * F1)
+            theta1_solutions.append(2 * np.arctan(t_half))
+    else:
+        for sign in [1, -1]:
+            t_half = (-F1 + sign * np.sqrt(disc1)) / denom1
+            theta1_solutions.append(2 * np.arctan(t_half))
+
+    for theta1 in theta1_solutions:
+        c1, s1 = np.cos(theta1), np.sin(theta1)
+
+        # Step 2: Solve theta6
+        theta6 = np.arctan2(r12 * s1 - r22 * c1, r21 * c1 - r11 * s1)
+
+        # Step 3: Solve theta5
+        c6, s6 = np.cos(theta6), np.sin(theta6)
+        theta5 = np.arctan2(
+            (r21 * c1 - r11 * s1) * c6 + (r12 * s1 - r22 * c1) * s6,
+            r13 * s1 - r23 * c1
+        )
+
+        # Step 4: Solve theta2
+        c5, s5 = np.cos(theta5), np.sin(theta5)
+        B = r32 * c6 + r31 * s6
+        if abs(c5) > 1e-12:
+            A = (r31 * c6 - r32 * s6) / c5
+        else:
+            if abs(s5) > 1e-12:
+                A = r33 / s5
+            else:
+                continue
+
+        a_val = -x6 * c1 - y6 * s1 - d5 * A
+        b_val = z6 - d5 * B
+        E2 = -2 * a2 * b_val
+        F2 = -2 * a2 * a_val
+        G2 = a2**2 + a_val**2 + b_val**2 - a3**2
+        disc2 = E2**2 + F2**2 - G2**2
+        if disc2 < -1e-8:
+            continue
+        disc2 = max(disc2, 0.0)
+
+        theta2_solutions = []
+        denom2 = G2 - E2
+        if abs(denom2) < 1e-12:
+            if abs(F2) > 1e-12:
+                t_half2 = -(G2 + E2) / (2 * F2)
+                theta2_solutions.append(2 * np.arctan(t_half2))
+        else:
+            for sign2 in [1, -1]:
+                t_half2 = (-F2 + sign2 * np.sqrt(disc2)) / denom2
+                theta2_solutions.append(2 * np.arctan(t_half2))
+
+        for theta2 in theta2_solutions:
+            c2, s2 = np.cos(theta2), np.sin(theta2)
+
+            # Step 5: Solve theta3
+            theta3 = np.arctan2(a_val - a2 * s2, b_val - a2 * c2) - theta2
+
+            # Step 6: Solve theta4
+            theta4 = np.arctan2(A, B) - theta2 - theta3
+
+            q_mod = np.array([theta1, theta2, theta3, theta4, theta5, theta6])
+            q_classical = dh_modified_to_classical(q_mod)
+            if safety_check(q_classical):
+                solutions.append(q_mod)
+
+    return solutions
+
+
+def pick_closest_solution(solutions, q_current):
+    """Pick the IK solution closest to q_current in joint space. Returns classical DH angles."""
+    best_q = None
+    best_dist = np.inf
+    for sol_mod in solutions:
+        q_c = dh_modified_to_classical(sol_mod)
+        # Wrap angle differences to [-pi, pi] for fair distance comparison
+        diff = np.arctan2(np.sin(q_c - q_current), np.cos(q_c - q_current))
+        dist = np.linalg.norm(diff)
+        if dist < best_dist:
+            best_dist = dist
+            best_q = q_c
+    return best_q
 
 
 class KinematicsNode(Node):
@@ -200,29 +377,6 @@ class KinematicsNode(Node):
         with self._twist_lock:
             self.current_twist = twist
 
-    def _pose_error_twist(self, target_pose, gain=2.0):
-        """Compute a 6D twist from pose error between current EE and target pose."""
-        frames = forward_kinematics(self.q)
-        current_pose = frames[-1]
-
-        # Position error
-        pos_error = target_pose[:3, 3] - current_pose[:3, 3]
-
-        # Orientation error via rotation matrix: R_err = R_target @ R_current^T
-        R_err = target_pose[:3, :3] @ current_pose[:3, :3].T
-        # Extract axis-angle from R_err using Rodrigues
-        angle = np.arccos(np.clip((np.trace(R_err) - 1.0) / 2.0, -1.0, 1.0))
-        if abs(angle) < 1e-6:
-            rot_error = np.zeros(3)
-        else:
-            rot_error = angle / (2.0 * np.sin(angle)) * np.array([
-                R_err[2, 1] - R_err[1, 2],
-                R_err[0, 2] - R_err[2, 0],
-                R_err[1, 0] - R_err[0, 1],
-            ])
-
-        return gain * np.concatenate([pos_error, rot_error])
-
     def timer_callback(self):
         # Read state (thread-safe)
         with self._twist_lock:
@@ -247,21 +401,27 @@ class KinematicsNode(Node):
 
             # Target pose = reference_ee_pose * relative_transform
             target_pose = self.reference_ee_pose @ transform
-            twist = self._pose_error_twist(target_pose)
+
+            # Analytical IK → pick closest safe solution for continuity
+            solutions = ik(target_pose)
+            q_target = pick_closest_solution(solutions, self.q)
+
+            if q_target is not None:
+                q_dot = (q_target - self.q) / max(dt, 0.001)
+                self.q = q_target
+            else:
+                q_dot = np.zeros(6)  # unreachable — hold position
         else:
-            # Reset reference when switching back to velocity mode
+            # Velocity mode (existing resolved-rate IK)
             if mode == "velocity":
                 self.reference_ee_pose = None
 
-        q_dot = resolved_rate(J, twist, lam)
+            q_dot = resolved_rate(J, twist, lam)
+            q_dot = np.clip(q_dot, -QDOT_MAX, QDOT_MAX)
 
-        # Clamp per-joint velocities
-        q_dot = np.clip(q_dot, -QDOT_MAX, QDOT_MAX)
-
-        # Integrate
-        if dt > 0.001:
-            self.q = self.q + q_dot * dt
-            self.q = np.clip(self.q, Q_MIN, Q_MAX)
+            if dt > 0.001:
+                self.q = self.q + q_dot * dt
+                self.q = np.clip(self.q, Q_MIN, Q_MAX)
 
         # Compute feedback for server
         frames = forward_kinematics(self.q)
