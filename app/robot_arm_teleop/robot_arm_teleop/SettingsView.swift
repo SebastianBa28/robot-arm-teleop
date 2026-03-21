@@ -11,6 +11,7 @@ struct SettingsView: View {
     @Binding var axisMapX: String
     @Binding var axisMapY: String
     @Binding var axisMapZ: String
+    @Binding var showFeedback: Bool
     @Binding var isPresented: Bool
     var connectAction: () -> Void
     var disconnectAction: () -> Void
@@ -37,6 +38,10 @@ struct SettingsView: View {
                         Text("Position").tag("position")
                     }
                     .pickerStyle(.segmented)
+                }
+
+                Section(header: Text("Display")) {
+                    Toggle("Show Feasibility & Manipulability", isOn: $showFeedback)
                 }
 
                 Section(header: Text("Axis Mapping (Phone → Robot)")) {

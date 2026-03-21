@@ -16,6 +16,7 @@ struct ContentView: View {
     @AppStorage("axisMapX") private var axisMapX: String = "-Z"
     @AppStorage("axisMapY") private var axisMapY: String = "-X"
     @AppStorage("axisMapZ") private var axisMapZ: String = "+Y"
+    @AppStorage("showFeedback") private var showFeedback: Bool = true
     @State private var showSettings = false
 
     var body: some View {
@@ -75,7 +76,7 @@ struct ContentView: View {
                         .cornerRadius(12)
                         .shadow(radius: 5)
 
-                    if let feedback = teleop.feedback {
+                    if showFeedback, let feedback = teleop.feedback {
                         FeedbackView(feedback: feedback)
                     }
                 }
@@ -122,6 +123,7 @@ struct ContentView: View {
                 axisMapX: $axisMapX,
                 axisMapY: $axisMapY,
                 axisMapZ: $axisMapZ,
+                showFeedback: $showFeedback,
                 isPresented: $showSettings,
                 connectAction: { teleop.connect(url: serverURL) },
                 disconnectAction: { teleop.disconnect() },
