@@ -28,6 +28,7 @@ struct TeleopMessage: Encodable {
     let wz: Double
     let transform: [[Float]]  // 4x4 row-major
     let mode: String           // "velocity" or "position"
+    let command: String?       // e.g. "reset"
 }
 
 /// Feedback data received from the bridge.

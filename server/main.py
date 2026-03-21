@@ -75,6 +75,8 @@ async def ios_endpoint(websocket: WebSocket):
             relay_msg = {**latest_twist, "mode": latest_mode}
             if latest_transform is not None:
                 relay_msg["transform"] = latest_transform
+            if "command" in data:
+                relay_msg["command"] = data["command"]
             dead = set()
             for ros_ws in ros_clients:
                 try:

@@ -82,17 +82,34 @@ struct ContentView: View {
 
                 Spacer()
 
-                // AR Toggle Button
-                Button(action: { toggleAR() }) {
-                    ZStack {
-                        Circle()
-                            .fill(teleop.isARActive ? Color.green : Color.red)
-                            .frame(width: 80, height: 80)
-                            .shadow(radius: 10)
+                // Control Buttons
+                HStack(spacing: 30) {
+                    // Reset Button
+                    Button(action: { resetRobot() }) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 60, height: 60)
+                                .shadow(radius: 8)
 
-                        Image(systemName: teleop.isARActive ? "pause.fill" : "play.fill")
-                            .font(.title)
-                            .foregroundColor(.white)
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.title2)
+                                .foregroundColor(.white)
+                        }
+                    }
+
+                    // AR Toggle Button
+                    Button(action: { toggleAR() }) {
+                        ZStack {
+                            Circle()
+                                .fill(teleop.isARActive ? Color.green : Color.red)
+                                .frame(width: 80, height: 80)
+                                .shadow(radius: 10)
+
+                            Image(systemName: teleop.isARActive ? "pause.fill" : "play.fill")
+                                .font(.title)
+                                .foregroundColor(.white)
+                        }
                     }
                 }
                 .padding(.bottom, 40)
@@ -128,6 +145,12 @@ struct ContentView: View {
             robotY: AxisSource(rawValue: axisMapY) ?? .negX,
             robotZ: AxisSource(rawValue: axisMapZ) ?? .posY
         )
+    }
+
+    private func resetRobot() {
+        teleop.resetRobot()
+        let impact = UIImpactFeedbackGenerator(style: .heavy)
+        impact.impactOccurred()
     }
 
     private func toggleAR() {

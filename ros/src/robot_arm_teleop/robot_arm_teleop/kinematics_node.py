@@ -339,6 +339,13 @@ class KinematicsNode(Node):
                             async for message in ws:
                                 try:
                                     data = json.loads(message)
+                                    if data.get("command") == "reset":
+                                        with self._twist_lock:
+                                            self.q = Q_HOME.copy()
+                                            self.current_twist = np.zeros(6)
+                                            self.reference_ee_pose = None
+                                        self.get_logger().info('Robot reset to home position')
+                                        continue
                                     twist = np.array([
                                         data.get("vx", 0.0), data.get("vy", 0.0), data.get("vz", 0.0),
                                         data.get("wx", 0.0), data.get("wy", 0.0), data.get("wz", 0.0),

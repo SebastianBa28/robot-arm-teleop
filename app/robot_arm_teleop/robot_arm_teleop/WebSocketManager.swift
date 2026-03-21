@@ -87,6 +87,22 @@ class WebSocketManager: ObservableObject {
         }
     }
 
+    func sendCommand(_ command: String) {
+        guard isConnected, let task = webSocketTask else { return }
+
+        let payload: [String: String] = ["command": command]
+        do {
+            let data = try encoder.encode(payload)
+            task.send(.data(data)) { error in
+                if let error = error {
+                    print("Send command error: \(error)")
+                }
+            }
+        } catch {
+            print("Encode command error: \(error)")
+        }
+    }
+
     private func receiveMessage() {
         guard let task = webSocketTask else { return }
 

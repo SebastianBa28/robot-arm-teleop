@@ -62,7 +62,8 @@ class TeleopManager: ObservableObject {
                     vx: rvx, vy: rvy, vz: rvz,
                     wx: rwx, wy: rwy, wz: rwz,
                     transform: remappedTransform,
-                    mode: mode
+                    mode: mode,
+                    command: nil
                 )
                 self.webSocketManager.send(message: message)
             }
@@ -86,6 +87,11 @@ class TeleopManager: ObservableObject {
             referencePose = nil  // will be captured on first frame
         }
         isARActive.toggle()
+    }
+
+    func resetRobot() {
+        webSocketManager.sendCommand("reset")
+        referencePose = nil
     }
 
     func connect(url: String) {
