@@ -1,7 +1,7 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, ExecuteProcess
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -14,8 +14,21 @@ def generate_launch_description():
     with open(urdf_file, 'r') as f:
         robot_description = f.read()
 
+    bag_output_dir = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
+            os.path.realpath(__file__))))),
+        'data'
+    )
+
     return LaunchDescription([
         DeclareLaunchArgument('server_url', default_value='ws://localhost:8000/ws/ros'),
+
+        # Rosbag recording of joint states
+        ExecuteProcess(
+            cmd=['ros2', 'bag', 'record', '/joint_states',
+                 '--output', os.path.join(bag_output_dir, 'joint_states')],
+            output='screen',
+        ),
 
         # Robot State Publisher
         Node(
