@@ -9,8 +9,6 @@ import simd
 class TeleopManager: ObservableObject {
     let webSocketManager = WebSocketManager()
     let arSessionManager = ARSessionManager()
-    let hapticsController: HapticsController
-
     @Published var isARActive: Bool = false
 
     // Configuration (set from ContentView @AppStorage bindings)
@@ -33,8 +31,6 @@ class TeleopManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     init() {
-        self.hapticsController = HapticsController(webSocketManager: webSocketManager)
-
         // Forward teleop data to WebSocket when streaming
         arSessionManager.$latestTwist
             .compactMap { $0 }
