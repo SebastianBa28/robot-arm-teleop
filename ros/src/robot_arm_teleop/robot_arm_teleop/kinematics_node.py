@@ -257,12 +257,8 @@ def ik(T_bt, T_6t=None):
 
 
 def is_elbow_up(q_classical):
-    """Check if the elbow (joint 3 frame) is above the base plane."""
-    T = np.eye(4)
-    for i in range(3):
-        a, d, alpha = IK_PARAMS[i]
-        T = T @ _getZ(q_classical[i], d) @ _getX(alpha, a)
-    return T[2, 3] > 0
+    """Check if the configuration is elbow-up (theta3 > 0)."""
+    return q_classical[2] > 0
 
 
 def pick_closest_solution(solutions, q_current):
