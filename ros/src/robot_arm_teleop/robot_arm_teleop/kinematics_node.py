@@ -19,7 +19,7 @@ DH_ALPHA = np.array([np.pi / 2, 0.0, 0.0, np.pi / 2, -np.pi / 2, 0.0])
 Q_MIN = np.full(6, -2 * np.pi)
 Q_MAX = np.full(6, 2 * np.pi)
 QDOT_MAX = np.array([np.pi, np.pi, np.pi, 2 * np.pi, 2 * np.pi, 2 * np.pi])
-Q_HOME = np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
+Q_HOME = np.array([-np.pi/2, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
 # Feedback constants
 MAX_REACH = 1.1843  # UR10e approximate max reach [m]

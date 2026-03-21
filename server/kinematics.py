@@ -15,7 +15,7 @@ Q_MAX = np.full(6, 2 * np.pi)
 QDOT_MAX = np.array([np.pi, np.pi, np.pi, 2 * np.pi, 2 * np.pi, 2 * np.pi])
 
 # Home configuration (non-singular elbow-up pose)
-Q_HOME = np.array([0.0, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
+Q_HOME = np.array([-np.pi/2, -np.pi / 2, np.pi / 2, -np.pi / 2, -np.pi / 2, 0.0])
 
 
 def dh_transform(theta: float, d: float, a: float, alpha: float) -> np.ndarray:
