@@ -44,6 +44,12 @@ class TeleopManager: ObservableObject {
                 let mapping = self.axisMapping
                 let mode = self.controlMode
 
+                // Capture reference pose on first frame (must be before twist rotation)
+                let currentPose = self.arSessionManager.currentPose
+                if self.referencePose == nil {
+                    self.referencePose = currentPose
+                }
+
                 // Rotate twist from world frame into reference frame
                 let refRot = simd_float3x3(
                     simd_make_float3(self.referencePose!.columns.0),
@@ -58,11 +64,7 @@ class TeleopManager: ObservableObject {
                 let (rvx, rvy, rvz) = mapping.remap(Double(localLin.x), Double(localLin.y), Double(localLin.z))
                 let (rwx, rwy, rwz) = mapping.remap(Double(localAng.x), Double(localAng.y), Double(localAng.z))
 
-                // Get current pose and compute relative transform
-                let currentPose = self.arSessionManager.currentPose
-                if self.referencePose == nil {
-                    self.referencePose = currentPose
-                }
+                // Compute relative transform for position mode
                 let relativePose = simd_mul(simd_inverse(self.referencePose!), currentPose)
 
                 // Remap the relative transform
