@@ -266,19 +266,30 @@ def ik(T_bt, T_6t=None):
     return solutions
 
 
+def is_elbow_up(q_classical):
+    """Check if the elbow (joint 3 frame) is above the base plane."""
+    T = np.eye(4)
+    for i in range(3):
+        a, d, alpha = IK_PARAMS[i]
+        T = T @ _getZ(q_classical[i], d) @ _getX(alpha, a)
+    return T[2, 3] > 0
+
+
 def pick_closest_solution(solutions, q_current):
-    """Pick the IK solution closest to q_current in joint space. Returns classical DH angles."""
-    best_q = None
-    best_dist = np.inf
+    """Pick the closest elbow-up IK solution. Falls back to closest overall."""
+    candidates = []
     for sol_mod in solutions:
         q_c = dh_modified_to_classical(sol_mod)
-        # Wrap angle differences to [-pi, pi] for fair distance comparison
         diff = np.arctan2(np.sin(q_c - q_current), np.cos(q_c - q_current))
         dist = np.linalg.norm(diff)
-        if dist < best_dist:
-            best_dist = dist
-            best_q = q_c
-    return best_q
+        candidates.append((q_c, dist, is_elbow_up(q_c)))
+
+    elbow_up = [(q, d) for q, d, eu in candidates if eu]
+    if elbow_up:
+        return min(elbow_up, key=lambda x: x[1])[0]
+    if candidates:
+        return min(candidates, key=lambda x: x[1])[0]
+    return None
 
 
 class KinematicsNode(Node):
