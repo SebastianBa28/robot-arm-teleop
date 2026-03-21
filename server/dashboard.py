@@ -13,7 +13,7 @@ class DashboardState:
 
     def __init__(self):
         self.twist = [0.0] * 6
-        self.q = [0.0, -1.5707963, 1.5707963, -1.5707963, -1.5707963, 0.0]  # Q_HOME
+        self.q = [1.5707963, -1.5707963, 1.5707963, -1.5707963, -1.5707963, 0.0]  # Q_HOME
         self.qdot = [0.0] * 6
         self.ee_pos = [0.0, 0.0, 0.0]
         self.ee_dist = 0.0

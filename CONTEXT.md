@@ -2,141 +2,164 @@
 
 ## Overview
 
-Teleoperate a UR10e robot arm using an iPhone as a 6-DOF input device. The phone's pose (tracked via ARKit) maps to the desired end-effector pose via resolved-rate (Jacobian-based) control. Since ARKit provides velocity-based pose tracking, we use the geometric Jacobian to map task-space velocities directly to joint velocities — no IK solver needed per frame. The system visualizes the robot in RViz 2 and provides real-time haptic/visual feedback for workspace limits and singularities.
+Teleoperate a UR10e robot arm using an iPhone as a 6-DOF input device. The phone's pose (tracked via ARKit) drives the robot through two control modes: velocity mode (resolved-rate Jacobian control) and position mode (analytical closed-form IK). The system visualizes the robot in RViz 2 and provides real-time haptic/visual feedback for workspace limits and singularities.
 
 ## Architecture
 
 ```
-┌─────────────┐   WebSocket    ┌──────────────┐   ROS 2 Topics   ┌───────────┐
-│  iOS App    │ ──────────────▶│  FastAPI      │ ────────────────▶│  ROS 2    │
-│  (Swift +   │ ◀──────────────│  Bridge       │                  │  Nodes    │
-│   ARKit)    │   Feedback     │  (standalone) │                  │  + RViz   │
-└─────────────┘                └──────────────┘                  └───────────┘
+┌─────────────┐   WebSocket    ┌──────────────┐   WebSocket    ┌───────────────────┐
+│  iOS App    │ ──────────────▶│  FastAPI      │ ──────────────▶│  ROS 2            │
+│  (Swift +   │ ◀──────────────│  Relay        │ ◀──────────────│  KinematicsNode   │
+│   ARKit)    │   Feedback     │  Server       │   State+FB     │  + RViz + Rosbag  │
+└─────────────┘                └──────────────┘                └───────────────────┘
 ```
 
-### iOS App (Swift)
-- Uses ARKit to track phone pose and compute twist velocity (linear + angular velocity)
-- Streams twist velocity over WebSocket to FastAPI bridge at configurable rate (~30 Hz default)
-- Receives feedback from server: workspace limits, singularity warnings, joint limit warnings
-- Displays feedback via visual indicators (color gradient green → yellow → red) and haptic feedback (vibration intensity)
+### iOS App (`app/`)
 
-### FastAPI Bridge (Python, standalone process)
-- WebSocket server receiving twist velocity data from the iOS app
-- Maintains current joint state q
-- Computes geometric Jacobian J(q) from DH parameters each frame
-- Performs resolved-rate control: q̇ = J⁻¹(q) · ẋ (damped least squares near singularities)
-- Integrates: q = q + q̇ · dt
-- Publishes joint state to ROS 2 topics
-- Computes and sends feedback back to app over the same WebSocket:
-  - Manipulability measure (singularity proximity) from sqrt(det(J·Jᵀ))
-  - Joint limit proximity (per-joint percentage to limit)
-  - Workspace boundary proximity
-  - Binary feasibility (if resulting q violates limits → infeasible)
+- ARKit world tracking (`.gravity` alignment) for 6-DOF phone pose at ~60 fps
+- Computes twist velocity (linear + angular) from frame-to-frame pose deltas
+- Twist is rotated from ARKit world frame into the reference pose's local frame, so movements are always relative to the phone's orientation at session/reset time
+- Configurable axis mapping (phone axes → robot axes) with sign flipping
+- Two control modes selectable in settings: velocity and position
+- Reset button snaps robot to Q_HOME and re-references the phone pose
+- Sends `TeleopMessage` (twist + 4x4 transform + mode + optional command) over WebSocket
+- Receives feedback (manipulability, feasibility, joint limit proximity) and displays via UI indicators + haptics
+- Feedback display togglable in settings
 
-### ROS 2 Nodes (Jazzy)
-- **Server node**: Subscribes to joint state from FastAPI bridge, publishes `JointState` messages
-- **RViz visualization**: Displays UR10e model with current joint state (visualization only, no real robot)
-- Launch file: `visual.launch.py`
+### FastAPI Server (`server/`)
 
-## Kinematics: Jacobian-Based Resolved-Rate Control
+Pure WebSocket relay — no kinematics computation. Two endpoints:
 
-### Why Jacobian Instead of IK
-ARKit provides pose updates as velocity (frame-to-frame deltas). Since we already have the task-space velocity ẋ, we can use the Jacobian to compute joint velocities directly:
+- `/ws` — iOS app connection. Receives teleop messages, forwards to ROS clients, relays feedback back to iOS
+- `/ws/ros` — ROS node connection. Receives state/feedback from ROS, updates dashboard
+- `/dashboard` — Web debug dashboard with live charts (joint angles, manipulability, twist magnitude, joint limit proximity)
+- `/ws/dashboard` — WebSocket for dashboard telemetry broadcast at ~10 Hz
 
+Files: `main.py` (relay), `dashboard.py` (dashboard state + inline HTML)
+
+### ROS 2 KinematicsNode (`ros/`)
+
+All kinematics runs in `kinematics_node.py`. The node:
+
+- Connects to the server via WebSocket (background thread) to receive twist/transform/commands
+- Runs a 30 Hz timer callback that:
+  - **Velocity mode**: Resolved-rate IK via damped least-squares Jacobian inverse
+  - **Position mode**: Analytical closed-form IK (6 equations, all solutions enumerated), picks closest elbow-up solution with safety checks (no frames below ground)
+- Publishes `JointState` on `/joint_states` for `robot_state_publisher` and RViz
+- Sends state + feedback back to server over WebSocket
+- Handles reset command (snaps to Q_HOME, clears twist and reference pose)
+- Subscribes to `/cmd_vel` as a fallback twist input for testing without the server
+
+The launch file (`visual.launch.py`) starts:
+- `robot_state_publisher` (URDF → TF)
+- `rviz2` (visualization)
+- `kinematics_node` (IK + WebSocket bridge)
+- `ros2 bag record` (auto-records `/joint_states` to `ros/data/` with datetime filenames)
+
+## Control Modes
+
+### Velocity Mode (Resolved-Rate)
 ```
-ẋ = J(q) · q̇   →   q̇ = J⁻¹(q) · ẋ
+q_dot = J^T (J J^T + lambda^2 I)^{-1} * twist
+q += q_dot * dt
+```
+Adaptive damping: lambda increases as manipulability approaches zero (singularity avoidance).
+
+### Position Mode (Analytical IK)
+```
+target_pose = reference_ee_pose @ relative_transform
+solutions = analytical_ik(target_pose)  # all closed-form solutions
+q = pick_closest_elbow_up(solutions, q_current)
+```
+- Reference EE pose captured on first position-mode frame (or after reset)
+- Relative transform comes from the iOS app (phone movement since reference)
+- Solution selection: prefer elbow-up (elbow frame z > 0), pick closest in joint space, fall back to closest overall if no elbow-up exists
+- Safety check: all intermediate frames must have z > 0 (above ground)
+
+## UR10e Parameters
+
+### DH Parameters (Standard Convention)
+
+| Joint | a [m]    | d [m]   | alpha [rad] |
+|-------|----------|---------|-------------|
+| 1     | 0        | 0.1807  | pi/2        |
+| 2     | -0.6127  | 0       | 0           |
+| 3     | -0.57155 | 0       | 0           |
+| 4     | 0        | 0.17415 | pi/2        |
+| 5     | 0        | 0.11985 | -pi/2       |
+| 6     | 0        | 0.11655 | 0           |
+
+### Joint Limits
+- All joints: -2pi to 2pi
+- Max velocity: pi rad/s (joints 1-3), 2*pi rad/s (joints 4-6)
+- Home config (Q_HOME): [-pi/2, -pi/2, pi/2, -pi/2, -pi/2, 0]
+
+## Message Protocol
+
+### iOS → Server (TeleopMessage)
+```json
+{"vx": 0, "vy": 0, "vz": 0, "wx": 0, "wy": 0, "wz": 0,
+ "transform": [[...4x4 row-major...]], "mode": "velocity|position",
+ "command": "reset"}
 ```
 
-This avoids solving the full inverse kinematics problem every frame, and is computationally cheap (matrix operations on a 6x6 matrix).
-
-### Control Loop
-
-```
-each frame (at ~30 Hz):
-  1. Receive twist velocity ẋ = [vx, vy, vz, wx, wy, wz] from iOS app
-  2. Compute forward kinematics chain T₀¹...T₀⁶ from current q using DH params
-  3. Build geometric Jacobian J(q):
-     For each joint i:
-       z_{i-1} = T₀^{i-1}[0:3, 2]    (joint axis)
-       o_{i-1} = T₀^{i-1}[0:3, 3]    (frame origin)
-       J_i = [ z_{i-1} × (o₆ - o_{i-1}) ]   (linear, 3×1)
-             [        z_{i-1}              ]   (angular, 3×1)
-  4. Compute manipulability: μ = sqrt(det(J·Jᵀ))
-  5. Compute damped inverse: q̇ = Jᵀ(J·Jᵀ + λ²I)⁻¹ · ẋ
-     where λ adapts based on μ (higher damping near singularities)
-  6. Clamp q̇ to joint velocity limits
-  7. Integrate: q = q + q̇ · dt
-  8. Check joint limits, clamp q
-  9. Publish q as JointState
-  10. Send feedback (μ, joint limit proximity, feasibility) to app
+### ROS → Server (State Payload)
+```json
+{"q": [...], "qdot": [...], "ee_pos": [x,y,z], "ee_dist": 0,
+ "mu": 0, "lam": 0, "feedback": {...}, "dt": 0}
 ```
 
-### UR10e DH Parameters (Denavit-Hartenberg)
+### Server → iOS (Feedback)
+```json
+{"manipulability": 0, "joint_limit_proximity": [...],
+ "workspace_proximity": 0, "is_feasible": true}
+```
 
-| Joint | a [m]    | d [m]   | α [rad] | θ        |
-|-------|----------|---------|---------|----------|
-| 1     | 0        | 0.1807  | π/2     | q₁       |
-| 2     | -0.6127  | 0       | 0       | q₂       |
-| 3     | -0.57155 | 0       | 0       | q₃       |
-| 4     | 0        | 0.17415 | π/2     | q₄       |
-| 5     | 0        | 0.11985 | -π/2    | q₅       |
-| 6     | 0        | 0.11655 | 0       | q₆       |
+## Tools
 
-### UR10e Joint Limits
-
-| Joint | Min [rad] | Max [rad] | Max velocity [rad/s] |
-|-------|-----------|-----------|---------------------|
-| 1-6   | -2π       | 2π        | ±π (joints 1-3), ±2π (joints 4-6) |
-
-### Singularity Conditions
-- **Shoulder**: Wrist center passes through joint 1 z-axis
-- **Elbow**: Joints 2-3 fully extended (arm straight)
-- **Wrist**: Joint 5 near 0 or π (joints 4 and 6 axes align)
-
-All detected via manipulability measure μ — as μ → 0, damping λ increases and feedback is sent to app.
-
-## Feedback System
-
-| Condition | Detection Method | App Response |
-|-----------|-----------------|--------------|
-| Normal operation | μ > threshold, joints within limits | Green UI, no haptic |
-| Approaching singularity | μ dropping toward threshold | Yellow UI + light haptic |
-| Near singularity | μ < threshold | Red UI + strong haptic |
-| Near joint limits | Any joint within 10% of limit | Yellow/red per-joint indicator + haptic |
-| Infeasible (joint limit hit) | q clamped at limit | Red flash + strong vibration |
-
-## Technical Details
-
-- **ROS 2 distro**: Jazzy
-- **Robot**: UR10e (Universal Robots)
-- **Kinematics**: Geometric Jacobian from DH parameters (resolved-rate control)
-- **Communication**: WebSocket (bidirectional — twist velocity upstream, feedback downstream)
-- **Data format**: Twist velocity [vx, vy, vz, wx, wy, wz] from ARKit
-- **Update rate**: ~30 Hz, configurable/togglable
-- **Visualization**: RViz 2 only (no real robot driver)
-- **Singularity handling**: Damped least squares with adaptive λ
+### Rosbag Visualization
+```bash
+python ros/src/visualize_joint_states.py <bag_directory> [--trim-wait]
+```
+- Plots joint positions and velocities vs time
+- `--trim-wait`: removes initial idle period (starts 0.5s after first velocity spike)
+- Saves plot as `joint_states.png` in the bag directory
+- Uses `rosbags` (pip) — no ROS environment needed
 
 ## Project Structure
 
 ```
 robot-arm-teleop/
-├── app/                          # iOS app (Swift/SwiftUI + ARKit)
+├── app/                              # iOS app (Xcode project)
 │   └── robot_arm_teleop/
-├── ros/                          # ROS 2 workspace
-│   └── src/
-│       └── robot_arm_teleop/     # ROS 2 Python package
-│           ├── launch/
-│           ├── robot_arm_teleop/ # Python modules
-│           └── test/
-├── bridge/                       # FastAPI WebSocket bridge (to be created)
-│   ├── main.py                   # FastAPI app + WebSocket endpoint
-│   ├── kinematics.py             # DH params, FK, Jacobian, resolved-rate control
-│   └── feedback.py               # Manipulability, joint limit checks
-└── CONTEXT.md
+│       └── robot_arm_teleop/
+│           ├── robot_arm_teleopApp.swift   # Entry point
+│           ├── ContentView.swift           # Main UI + reset/AR buttons
+│           ├── TeleopManager.swift         # Coordinator (AR + WebSocket + haptics)
+│           ├── ARSessionManager.swift      # ARKit world tracking + twist computation
+│           ├── WebSocketManager.swift      # WebSocket client
+│           ├── HapticsController.swift     # Haptic feedback from manipulability
+│           ├── Models.swift                # TeleopMessage, FeedbackData, AxisMapping
+│           └── SettingsView.swift          # Server URL, mode, axis mapping, feedback toggle
+├── server/                           # FastAPI WebSocket relay
+│   ├── main.py                       # Relay endpoints (/ws, /ws/ros)
+│   └── dashboard.py                  # Debug dashboard state + HTML
+├── ros/                              # ROS 2 Humble workspace
+│   ├── src/
+│   │   ├── robot_arm_teleop/         # ROS 2 Python package
+│   │   │   ├── launch/visual.launch.py
+│   │   │   └── robot_arm_teleop/kinematics_node.py
+│   │   └── visualize_joint_states.py # Rosbag plotting script
+│   └── data/                         # Recorded rosbags (gitignored)
+├── CONTEXT.md
+└── pyproject.toml
 ```
 
-## Constraints
+## Technical Details
 
-- Deadline: mid-March 2026 (a few days)
-- Class project: ME235A
-- Keep it simple — minimal viable implementation first
+- **ROS 2 distro**: Humble
+- **Robot**: UR10e (visualization only, no real robot driver)
+- **Communication**: WebSocket (JSON) — iOS ↔ Server ↔ ROS
+- **iOS → Server rate**: ~60 Hz (ARKit frame rate)
+- **ROS control loop**: ~30 Hz
+- **Build**: `colcon build --symlink-install` in `ros/`
