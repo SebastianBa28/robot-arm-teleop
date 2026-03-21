@@ -1,6 +1,5 @@
 """FastAPI WebSocket server: relay between iOS app and ROS KinematicsNode."""
 
-import asyncio
 import json
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -18,8 +17,6 @@ latest_feedback = {}
 
 # Connected clients
 ros_clients: set[WebSocket] = set()
-ios_clients: set[WebSocket] = set()
-
 
 @app.get("/health")
 async def health():
@@ -30,7 +27,6 @@ async def health():
 async def ios_endpoint(websocket: WebSocket):
     """iOS app connects here: sends twist, receives feedback."""
     await websocket.accept()
-    ios_clients.add(websocket)
     dashboard_state.n_connections += 1
 
     try:
@@ -94,7 +90,6 @@ async def ios_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"iOS WebSocket error: {e}")
     finally:
-        ios_clients.discard(websocket)
         dashboard_state.n_connections = max(0, dashboard_state.n_connections - 1)
 
 

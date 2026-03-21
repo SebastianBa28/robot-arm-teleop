@@ -4,7 +4,6 @@ import asyncio
 import json
 import time
 
-import numpy as np
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
