@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
@@ -26,7 +27,7 @@ def generate_launch_description():
         # Rosbag recording of joint states
         ExecuteProcess(
             cmd=['ros2', 'bag', 'record', '/joint_states',
-                 '--output', os.path.join(bag_output_dir, 'joint_states')],
+                 '--output', os.path.join(bag_output_dir, f'joint_states_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}')],
             output='screen',
         ),
 
