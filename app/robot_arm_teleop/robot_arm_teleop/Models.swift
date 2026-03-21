@@ -2,8 +2,6 @@
 //  Models.swift
 //  robot_arm_teleop
 //
-//  Created by Gemini on 3/13/26.
-//
 
 import Foundation
 import simd

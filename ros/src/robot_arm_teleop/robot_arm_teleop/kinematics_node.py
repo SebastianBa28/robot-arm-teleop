@@ -132,16 +132,6 @@ def _getZ(theta, d):
                      [0, 0, 0, 1]])
 
 
-def fk_classical(q, T_6t=None):
-    """Forward kinematics using classical DH (lab2 convention)."""
-    if T_6t is None:
-        T_6t = np.eye(4)
-    T = np.eye(4)
-    for i, (a, d, alpha) in enumerate(IK_PARAMS):
-        T = T @ _getZ(q[i], d) @ _getX(alpha, a)
-    return T @ T_6t
-
-
 def safety_check(q):
     """Check that all joint frames stay above ground (z > 0)."""
     T = np.eye(4)

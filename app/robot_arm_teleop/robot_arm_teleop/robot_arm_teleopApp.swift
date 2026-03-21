@@ -2,8 +2,6 @@
 //  robot_arm_teleopApp.swift
 //  robot_arm_teleop
 //
-//  Created by Firdavs Nasriddinov on 3/13/26.
-//
 
 import SwiftUI
 
