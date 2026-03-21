@@ -348,7 +348,8 @@ class KinematicsNode(Node):
                                         data.get("wx", 0.0), data.get("wy", 0.0), data.get("wz", 0.0),
                                     ])
                                     with self._twist_lock:
-                                        self.current_twist = twist
+                                        alpha = 0.3
+                                        self.current_twist = alpha * twist + (1 - alpha) * self.current_twist
                                         if "mode" in data:
                                             self.current_mode = data["mode"]
                                         if "transform" in data:
@@ -379,7 +380,8 @@ class KinematicsNode(Node):
             msg.angular.x, msg.angular.y, msg.angular.z
         ])
         with self._twist_lock:
-            self.current_twist = twist
+            alpha = 0.3
+            self.current_twist = alpha * twist + (1 - alpha) * self.current_twist
 
     def timer_callback(self):
         # Read state (thread-safe)

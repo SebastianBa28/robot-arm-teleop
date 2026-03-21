@@ -54,7 +54,7 @@ def trim_wait(timestamps, positions, velocities, offset=0.5, threshold=0.01):
     spike_indices = np.where(max_vel > threshold)[0]
     if len(spike_indices) == 0:
         return timestamps, positions, velocities
-
+    
     spike_time = timestamps[spike_indices[0]]
     start_time = spike_time + offset
     mask = timestamps >= start_time
@@ -95,6 +95,8 @@ def main():
     parser.add_argument('bag_path', help='Path to the rosbag directory')
     parser.add_argument('--trim-wait', action='store_true',
                         help='Remove initial idle period before first movement')
+    parser.add_argument('--time-range', nargs=2, type=float, metavar=('START', 'END'),
+                        help='Only plot data between START and END seconds')
     args = parser.parse_args()
 
     timestamps, positions, velocities = read_bag(args.bag_path)
@@ -103,6 +105,14 @@ def main():
     if args.trim_wait:
         timestamps, positions, velocities = trim_wait(timestamps, positions, velocities)
         print(f'After trimming: {len(timestamps)} messages over {timestamps[-1]:.2f}s')
+
+    if args.time_range:
+        t_start, t_end = args.time_range
+        mask = (timestamps >= t_start) & (timestamps <= t_end)
+        timestamps = timestamps[mask] - timestamps[mask][0]
+        positions = positions[mask]
+        velocities = velocities[mask]
+        print(f'After time range [{t_start}, {t_end}]: {len(timestamps)} messages over {timestamps[-1]:.2f}s')
 
     save_path = os.path.join(args.bag_path, 'joint_states.png')
     plot(timestamps, positions, velocities, save_path=save_path)
