@@ -7,6 +7,8 @@ California Institute of Technology, Winter 2026
 
 **Collaborators:** Firdavs Nasriddinov & Sebastian Banuelos
 
+![Demo](media/demo.gif)
+
 ## Architecture
 
 ```
