@@ -13,6 +13,10 @@ California Institute of Technology, Winter 2026
   <img src="media/demo.gif" alt="Demo">
 </p>
 
+## Motivation
+
+Imitation learning models (e.g. Vision-Language-Action models) depend on high-quality human demonstration data, but collecting it is bottlenecked by traditional teleoperation hardware -- teach pendants, joysticks, and spacemice map poorly to 6-DOF end-effector control and force operators to decompose spatial intent into separate translational/rotational commands. Modern smartphones, which estimate their own 6-DOF pose in real time via visual-inertial odometry, offer a more natural alternative: since people already manipulate phones fluidly in 3D space, the phone itself can act as an intuitive spatial controller that maps directly to the robot's task space.
+
 ## Architecture
 
 ```
