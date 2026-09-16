@@ -10,7 +10,7 @@ California Institute of Technology, Winter 2026
 📄 **[Full Report (PDF)](report/Robot_Arm_Teleoperation_Report.pdf)** | 🎥 **[Full Demo Video](https://drive.google.com/file/d/1iJ-YPce5TwE5rri7qKfI2MuopTnw3I6X/view?usp=sharing)**
 
 <p align="center">
-  <img src="media/demo.gif" alt="Demo">
+  <img src="media/demo.gif" alt="Demo" width="900">
 </p>
 
 ## Motivation
